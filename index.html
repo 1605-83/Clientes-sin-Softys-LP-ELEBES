@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clientes sin Softys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F2F3F5;--card:#fff;--ink:#1F2328;--ink2:#6B7280;--line:#E5E7EB;--marca:#1F3D60;--azul:#2F6FDE;--rojo:#C0392B;--verde:#3DAA5C}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#F2F3F5; } }
+:root[data-theme="dark"]{ --bg:#F2F3F5; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums;line-height:1.35}
+.wrap{max-width:1300px;margin:0 auto;padding:20px 16px 40px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 22px;border-top:5px solid var(--marca)}
+.head h1{margin:0;font-size:1.4rem;font-weight:700;color:var(--marca)}
+.meta{font-size:.88rem;color:var(--ink2);margin-top:3px}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{font:inherit;font-size:.92rem;font-weight:700;padding:8px 16px;border:0;background:#fff;color:var(--ink2);cursor:pointer}
+.seg button.sel{background:var(--marca);color:#fff}
+select,input{font:inherit;font-size:.88rem;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+button.dl{font:inherit;font-size:.88rem;padding:8px 14px;border:1px solid var(--marca);color:var(--marca);background:#fff;border-radius:10px;cursor:pointer;font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px}
+@media (max-width:640px){.kpis{grid-template-columns:1fr}}
+.kpi{padding:14px 22px;border-right:1px solid var(--line)}.kpi:last-child{border-right:0}
+.kpi .l{font-size:.85rem;color:var(--ink2)}.kpi .v{font-size:1.6rem;font-weight:500;margin:6px 0 2px}.kpi .n{font-size:.82rem;color:var(--ink2)}
+.lista{margin-top:14px;overflow:hidden}
+.th,.vrow{display:grid;grid-template-columns:30px minmax(170px,1fr) 110px 110px 190px;gap:10px;align-items:center;padding:11px 18px}
+.th{font-size:.82rem;font-weight:700;background:#FAFAFA;border-bottom:1px solid var(--line)}
+.th span{cursor:pointer;user-select:none}.r{text-align:right}
+.vrow{border-bottom:1px solid var(--line);cursor:pointer}.vrow:hover{background:#F6F9FF}
+.chev{transition:transform .15s;color:#555;text-align:center}.vrow.ab .chev{transform:rotate(90deg)}
+.vn{font-weight:500}
+.cod{display:inline-block;min-width:2.3em;margin-right:8px;padding:1px 7px;border-radius:6px;background:#E6F0FF;color:var(--azul);font-size:.85em;font-weight:700;text-align:center}
+.bar{display:inline-block;width:90px;height:8px;border-radius:4px;background:#EEF0F3;overflow:hidden;vertical-align:middle;margin-right:8px}.bar i{display:block;height:100%;background:var(--rojo)}
+.det{background:#FAFBFC;border-bottom:1px solid var(--line);padding:6px 18px 14px 48px;overflow-x:auto}
+.det table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:620px}
+.det th,.det td{padding:6px 8px;border-bottom:1px solid #EDEDED;text-align:left;white-space:nowrap}
+.det th{font-size:.75rem;color:var(--ink2);text-transform:uppercase}
+.nunca{color:var(--rojo);font-weight:700}
+.vacio{padding:30px;text-align:center;color:var(--ink2)}
+@media (max-width:700px){.th{display:none}.vrow{grid-template-columns:22px 1fr auto}.vrow .m{display:none}.det{padding-left:10px}}
+footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card head">
+    <div><h1>Clientes sin compra de Softys</h1><div class="meta" id="meta">Cargando…</div></div>
+    <div class="ctrl">
+      <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button></div>
+      <select id="fVend" aria-label="Vendedor"><option value="">Todos los vendedores</option></select>
+      <input id="fCli" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
+      <button type="button" class="dl" id="dl">Descargar Excel</button>
+    </div>
+  </div>
+  <div class="card kpis" id="kpis"></div>
+  <div class="card lista">
+    <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">Sin Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span></div>
+    <div id="filas"></div>
+  </div>
+  <footer>Clientes activos de la cartera de cada vendedor en Gescom que no tienen ninguna factura de Softys en el período (de cualquier vendedor) · se actualiza con el Reporte diario de ventas</footer>
+</div>
+<script>
+const B='https://1605-83.github.io/Reporte-Diario-Ventas/', RAW='https://raw.githubusercontent.com/1605-83/Reporte-Diario-Ventas/main/';
+const EXCLUIR_V=new Set([16,25]);   // 16 = Vendedor Deposito, 25 = Johana Vigil (como en la Venta del dia)
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=s=>{ s=String(s??'').trim(); return s? (parseFloat(s.replace(/\./g,'').replace(',','.'))||0) : 0; };
+const fmtN=n=>Math.round(n).toLocaleString('es-AR');
+const fmtP=n=>(n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+const dmy=iso=>iso? iso.slice(8)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
+const titulo=s=>{ s=(s||'').trim(); if(!(s===s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(s))) return s; return s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g,(m,a,b)=>a+b.toUpperCase()); };
+const DIA={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado'};
+let CART=null, NOMV={}, ULT={}, DESDE='', HOY='', DIAS=60, abiertos=new Set(), sortK='sin', sortD=-1;
+
+function parseCSV(t){
+  const rows=[]; let row=[], f='', q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=ch; }
+    else if(ch==='"') q=true; else if(ch===';'){ row.push(f); f=''; }
+    else if(ch==='\n'){ row.push(f.replace(/\r$/,'')); rows.push(row); row=[]; f=''; } else f+=ch; }
+  if(f!==''||row.length){ row.push(f.replace(/\r$/,'')); rows.push(row); }
+  return rows;
+}
+// ultima factura de Softys de cada cliente (cualquier vendedor), por fecha de comprobante
+function leer(txt){
+  const R=parseCSV(txt).filter(r=>r.length>5); const H=R.shift().map(h=>h.trim()); const ix=n=>H.indexOf(n);
+  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cant:ix('CantBase'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
+  for(const r of R){
+    const cv=parseInt(r[I.cv],10); if(!isNaN(cv) && r[I.vn] && !NOMV[cv]) NOMV[cv]=titulo(r[I.vn]);
+    if((r[I.prov]||'').trim().toUpperCase()!=='SOFTYS ARGENTINA S.A') continue;
+    const tc=(r[I.nro]||'').trim().slice(0,3).toUpperCase(); if(tc==='NCR'||tc==='NDB') continue;
+    if(num(r[I.cant])<=0) continue;
+    const fc=(r[I.fc]||'').trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(fc) || fc>HOY) continue;
+    if(!DESDE || fc<DESDE) DESDE=fc;
+    const cli=String(r[I.cli]).trim(); if(!ULT[cli] || fc>ULT[cli]) ULT[cli]=fc;
+  }
+}
+function calcular(){
+  const lim=new Date(HOY+'T12:00'); lim.setDate(lim.getDate()-DIAS); const corte=lim.toISOString().slice(0,10);
+  const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase();
+  const V=[];
+  for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (fv && c!==fv)) continue;
+    const sin=lista.filter(k=>{ const u=ULT[String(k[0])]; return !u || u<=corte; })
+      .map(k=>({cod:String(k[0]), rs:k[1], dir:k[2], loc:k[3], canal:k[4], dia:k[5], ult:ULT[String(k[0])]||''}))
+      .filter(k=>!q || k.cod===q || (k.rs||'').toLowerCase().includes(q));
+    V.push({c:cv, n:NOMV[cv]||('Vendedor '+cv), cart:lista.length, sin, p: lista.length? sin.length/lista.length : 0});
+  }
+  return {V, corte};
+}
+function dibujar(){
+  const {V,corte}=calcular();
+  const val={n:v=>v.n, sin:v=>v.sin.length, cart:v=>v.cart, p:v=>v.p};
+  V.sort((a,b)=>{ const A=val[sortK](a), B=val[sortK](b); return (A>B?1:A<B?-1:0)*sortD || a.c-b.c; });
+  const tSin=V.reduce((a,v)=>a+v.sin.length,0), tCart=V.reduce((a,v)=>a+v.cart,0), nunca=V.reduce((a,v)=>a+v.sin.filter(k=>!k.ult).length,0);
+  $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
+  $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
+    <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
+    <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
+  document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
+  let h='';
+  for(const v of V){ if(!v.sin.length && $('fCli').value.trim()) continue; const ab=abiertos.has(v.c);
+    h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span></div>`;
+    if(ab){ const L=[...v.sin].sort((a,b)=>(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
+      h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th>Última compra Softys</th><th>Días sin compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td>${k.ult? dmy(k.ult) : `<span class="nunca">Sin compras desde ${dmy(DESDE)}</span>`}</td><td>${k.ult? Math.round((new Date(HOY)-new Date(k.ult))/864e5) : '—'}</td></tr>`).join('')||'<tr><td colspan="6">Todos los clientes compraron Softys en el período.</td></tr>'}</tbody></table></div>`; }
+  }
+  $('filas').innerHTML=h||'<div class="vacio">Sin resultados.</div>';
+}
+function descargar(){
+  const {V}=calcular(), sep=';', q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
+  const filas=[['Cod vendedor','Vendedor','Cod cliente','Razon social','Localidad','Dia de visita','Ultima compra Softys'].map(q).join(sep)];
+  for(const v of V) for(const k of v.sin) filas.push([v.c,v.n,k.cod,titulo(k.rs),titulo(k.loc),DIA[k.dia]||'',k.ult? dmy(k.ult) : 'Sin compras'].map(q).join(sep));
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+filas.join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  a.download=`clientes-sin-softys-${DIAS}-dias-${HOY}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+document.addEventListener('click',e=>{
+  const s=e.target.closest('.seg button'); if(s){ DIAS=+s.dataset.d; document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('sel',b===s)); dibujar(); return; }
+  const vr=e.target.closest('.vrow'); if(vr){ const c=+vr.dataset.v; abiertos.has(c)? abiertos.delete(c) : abiertos.add(c); dibujar(); return; }
+  const th=e.target.closest('.th span[data-k]'); if(th){ const k=th.dataset.k; if(sortK===k) sortD=-sortD; else { sortK=k; sortD=k==='n'? 1 : -1; } dibujar(); }
+});
+document.addEventListener('keydown',e=>{ const vr=e.target.closest&&e.target.closest('.vrow'); if(vr&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); vr.click(); } });
+$('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input',dibujar); $('dl').addEventListener('click',descargar);
+
+(async function(){
+  try{
+    HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+    const html=await (await fetch(B+'index.html?t='+Date.now(),{cache:'no-store'})).text();
+    const m=html.match(/^const CFG = (.*);\s*$/m); if(m) JSON.parse(m[1]).vendedores.forEach(v=>NOMV[v.c]=v.n);
+    CART=await (await fetch(B+'carteras.json?t='+Date.now(),{cache:'no-store'})).json();
+    const arch=((await (await fetch(B+'archivos.json?t='+Date.now(),{cache:'no-store'})).json()).archivos||[]);
+    // ultimo archivo de cada mes de los ultimos 4 meses
+    const ult={}; for(const p of arch){ const mm=p.match(/ventas-(\d{4}-\d{2})-/); if(mm && (!ult[mm[1]]||p>ult[mm[1]])) ult[mm[1]]=p; }
+    const meses=Object.keys(ult).sort().slice(-4);
+    $('meta').textContent='Bajando ventas…';
+    const txts=await Promise.all(meses.map(async ym=>{ const r=await fetch(RAW+ult[ym].split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}); return r.ok? new TextDecoder('windows-1252').decode(await r.arrayBuffer()) : ''; }));
+    txts.forEach(leer);
+    const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c)).sort((a,b)=>a-b);
+    $('fVend').innerHTML+=vs.map(c=>`<option value="${c}">${c} · ${esc(NOMV[c]||'Vendedor '+c)}</option>`).join('');
+    dibujar();
+  }catch(e){ $('meta').textContent='No se pudieron leer los datos: '+e.message; }
+})();
+</script>
+</body>
+</html>
