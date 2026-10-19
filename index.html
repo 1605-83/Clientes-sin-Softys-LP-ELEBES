@@ -75,7 +75,7 @@ const fmtP=n=>(n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFra
 const dmy=iso=>iso? iso.slice(8)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
 const titulo=s=>{ s=(s||'').trim(); if(!(s===s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(s))) return s; return s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g,(m,a,b)=>a+b.toUpperCase()); };
 const DIA={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado'};
-let CART=null, NOMV={}, ULT={}, DESDE='', HOY='', DIAS=60, abiertos=new Set(), sortK='sin', sortD=-1;
+let CART=null, EQUIPO=null, NOMV={}, ULT={}, DESDE='', HOY='', DIAS=60, abiertos=new Set(), sortK='sin', sortD=-1;
 
 function parseCSV(t){
   const rows=[]; let row=[], f='', q=false;
@@ -104,7 +104,7 @@ function calcular(){
   const lim=new Date(HOY+'T12:00'); lim.setDate(lim.getDate()-DIAS); const corte=lim.toISOString().slice(0,10);
   const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase();
   const V=[];
-  for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (fv && c!==fv)) continue;
+  for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (EQUIPO && !EQUIPO.has(cv)) || (fv && c!==fv)) continue;
     const sin=lista.filter(k=>{ const u=ULT[String(k[0])]; return !u || u<=corte; })
       .map(k=>({cod:String(k[0]), rs:k[1], dir:k[2], loc:k[3], canal:k[4], dia:k[5], ult:ULT[String(k[0])]||''}))
       .filter(k=>!q || k.cod===q || (k.rs||'').toLowerCase().includes(q));
@@ -149,7 +149,7 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
   try{
     HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
     const html=await (await fetch(B+'index.html?t='+Date.now(),{cache:'no-store'})).text();
-    const m=html.match(/^const CFG = (.*);\s*$/m); if(m) JSON.parse(m[1]).vendedores.forEach(v=>NOMV[v.c]=v.n);
+    const m=html.match(/^const CFG = (.*);\s*$/m); if(m){ const vs=JSON.parse(m[1]).vendedores; vs.forEach(v=>NOMV[v.c]=v.n); EQUIPO=new Set(vs.map(v=>v.c)); }   // solo los vendedores del Reporte diario de ventas
     CART=await (await fetch(B+'carteras.json?t='+Date.now(),{cache:'no-store'})).json();
     const arch=((await (await fetch(B+'archivos.json?t='+Date.now(),{cache:'no-store'})).json()).archivos||[]);
     // ultimo archivo de cada mes de los ultimos 4 meses
@@ -158,7 +158,7 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
     $('meta').textContent='Bajando ventas…';
     const txts=await Promise.all(meses.map(async ym=>{ const r=await fetch(RAW+ult[ym].split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}); return r.ok? new TextDecoder('windows-1252').decode(await r.arrayBuffer()) : ''; }));
     txts.forEach(leer);
-    const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c)).sort((a,b)=>a-b);
+    const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c) && (!EQUIPO || EQUIPO.has(c))).sort((a,b)=>a-b);
     $('fVend').innerHTML+=vs.map(c=>`<option value="${c}">${c} · ${esc(NOMV[c]||'Vendedor '+c)}</option>`).join('');
     dibujar();
   }catch(e){ $('meta').textContent='No se pudieron leer los datos: '+e.message; }
