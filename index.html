@@ -31,7 +31,12 @@ button.dl{font:inherit;font-size:.88rem;padding:8px 14px;border:1px solid var(--
 .kpi{padding:14px 22px;border-right:1px solid var(--line)}.kpi:last-child{border-right:0}
 .kpi .l{font-size:.85rem;color:var(--ink2)}.kpi .v{font-size:1.6rem;font-weight:500;margin:6px 0 2px}.kpi .n{font-size:.82rem;color:var(--ink2)}
 .lista{margin-top:14px;overflow:hidden}
-.th,.vrow{display:grid;grid-template-columns:30px minmax(170px,1fr) 110px 110px 190px;gap:10px;align-items:center;padding:11px 18px}
+.ctrl{flex:1 1 100%}
+.cobeq{margin-left:auto;padding:8px 16px;border:2px solid var(--marca);border-radius:12px;text-align:right;min-width:190px}
+.cobeq .l{font-size:.75rem;font-weight:700;color:var(--marca);text-transform:uppercase;letter-spacing:.03em}
+.cobeq .v{font-size:1.6rem;font-weight:900;color:var(--marca);line-height:1.1}
+.cobeq .n{font-size:.76rem;color:var(--ink2)}
+.th,.vrow{display:grid;grid-template-columns:30px minmax(170px,1fr) 110px 110px 190px 110px;gap:10px;align-items:center;padding:11px 18px}
 .th{font-size:.82rem;font-weight:700;background:#FAFAFA;border-bottom:1px solid var(--line)}
 .th span{cursor:pointer;user-select:none}.r{text-align:right}
 .vrow{border-bottom:1px solid var(--line);cursor:pointer}.vrow:hover{background:#F6F9FF}
@@ -53,6 +58,7 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
 <div class="wrap">
   <div class="card head">
     <div><h1>Clientes sin compra de Softys</h1><div class="meta" id="meta">Cargando…</div></div>
+    <div class="cobeq" id="cobEq" title="Clientes de la cartera del equipo con compra de Softys en el mes"></div>
     <div class="ctrl">
       <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button><button type="button" data-d="mes" id="bMes">Compraron en septiembre</button></div>
       <label id="lNoAct" class="chk" hidden><input type="checkbox" id="fNoAct"> <span id="tNoAct">Sin compra en octubre</span></label>
@@ -63,7 +69,7 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
   </div>
   <div class="card kpis" id="kpis"></div>
   <div class="card lista">
-    <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">Sin Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span></div>
+    <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">Sin Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span><span class="r" data-k="combo" id="thCombo">Combos 1137</span></div>
     <div id="filas"></div>
   </div>
   <footer>Clientes activos de la cartera de cada vendedor en Gescom que no tienen ninguna factura de Softys en el período (de cualquier vendedor) · se actualiza con el Reporte diario de ventas</footer>
@@ -82,6 +88,8 @@ const DIA={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 // MES_ANT: el mes anterior al actual (hoy septiembre); por cliente, importe de Softys de cada mes
 let MES={}, MES_ANT='', MES_ACT='';
+// combo de Softys que se cuenta por vendedor (codigo corto y con el prefijo 150 de Softys)
+const COMBO_COD='1137', COMBO=new Set([COMBO_COD,'150'+COMBO_COD]), COMBOS={};
 const nomMes=ym=>MESES[+ym.slice(5,7)-1];
 let CART=null, EQUIPO=null, NOMV={}, ULT={}, DESDE='', HOY='', DIAS=60, abiertos=new Set(), sortK='sin', sortD=-1;
 
@@ -97,9 +105,11 @@ function parseCSV(t){
 // ultima factura de Softys de cada cliente (cualquier vendedor), por fecha de comprobante
 function leer(txt){
   const R=parseCSV(txt).filter(r=>r.length>5); const H=R.shift().map(h=>h.trim()); const ix=n=>H.indexOf(n);
-  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cant:ix('CantBase'),imp:ix('ImporteItem'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
+  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cod:ix('Codigo'),cant:ix('CantBase'),imp:ix('ImporteItem'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
   for(const r of R){
     const cv=parseInt(r[I.cv],10); if(!isNaN(cv) && r[I.vn] && !NOMV[cv]) NOMV[cv]=titulo(r[I.vn]);
+    // combos vendidos en el mes por vendedor (cantidad neta: las notas de credito restan)
+    if(COMBO.has((r[I.cod]||'').trim()) && (r[I.fc]||'').trim().slice(0,7)===MES_ACT && !isNaN(cv)) COMBOS[cv]=(COMBOS[cv]||0)+num(r[I.cant]);   // en las notas de credito la cantidad ya viene negativa
     if((r[I.prov]||'').trim().toUpperCase()!=='SOFTYS ARGENTINA S.A') continue;
     const tc=(r[I.nro]||'').trim().slice(0,3).toUpperCase(); if(tc==='NCR'||tc==='NDB') continue;
     if(num(r[I.cant])<=0) continue;
@@ -126,7 +136,12 @@ function calcular(){
 }
 function dibujar(){
   const {V,corte}=calcular();
-  const val={n:v=>v.n, sin:v=>v.sin.length, cart:v=>v.cart, p:v=>v.p};
+  const val={n:v=>v.n, sin:v=>v.sin.length, cart:v=>v.cart, p:v=>v.p, combo:v=>COMBOS[v.c]||0};
+  // cobertura Softys del equipo en el mes: clientes de las carteras con factura de Softys / clientes de las carteras
+  { let base=0, ccc=0, comb=0;
+    for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (EQUIPO && !EQUIPO.has(cv))) continue;
+      base+=lista.length; ccc+=lista.filter(k=>((MES[String(k[0])]||{})[MES_ACT]||0)>0).length; comb+=COMBOS[cv]||0; }
+    $('cobEq').innerHTML=`<div class="l">Cobertura Softys equipo · ${nomMes(MES_ACT)}</div><div class="v">${base? fmtP(ccc/base) : '—'}</div><div class="n">${fmtN(ccc)} de ${fmtN(base)} clientes con compra · ${fmtN(comb)} combos ${COMBO_COD}</div>`; }
   V.sort((a,b)=>{ const A=val[sortK](a), B=val[sortK](b); return (A>B?1:A<B?-1:0)*sortD || a.c-b.c; });
   const tSin=V.reduce((a,v)=>a+v.sin.length,0), tCart=V.reduce((a,v)=>a+v.cart,0), nunca=V.reduce((a,v)=>a+v.sin.filter(k=>!k.ult).length,0);
   const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT), noAct=$('fNoAct').checked;
@@ -147,7 +162,7 @@ function dibujar(){
   document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
   let h='';
   for(const v of V){ if(!v.sin.length && $('fCli').value.trim()) continue; const ab=abiertos.has(v.c);
-    h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span></div>`;
+    h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span><span class="r m"><b>${fmtN(COMBOS[v.c]||0)}</b></span></div>`;
     if(ab && mes){ const L=[...v.sin].sort((a,b)=>b.ant-a.ant);
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th style="text-align:right">Softys ${nA}</th><th style="text-align:right">Softys ${nH}</th><th>Última compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td style="text-align:right">$ ${fmtN(k.ant)}</td><td style="text-align:right">${k.act>0? `<span class="si">$ ${fmtN(k.act)}</span>` : `<span class="nunca">Sin compra</span>`}</td><td>${dmy(k.ult)}</td></tr>`).join('')||'<tr><td colspan="7">Sin clientes.</td></tr>'}</tbody></table></div>`; }
     else if(ab){ const L=[...v.sin].sort((a,b)=>(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
