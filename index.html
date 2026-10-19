@@ -22,6 +22,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Roboto,system-ui
 .seg button{font:inherit;font-size:.92rem;font-weight:700;padding:8px 16px;border:0;background:#fff;color:var(--ink2);cursor:pointer}
 .seg button.sel{background:var(--marca);color:#fff}
 select,input{font:inherit;font-size:.88rem;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;font-weight:500;padding:7px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.chk input{width:auto;margin:0}.chk[hidden]{display:none}
+.si{color:var(--verde);font-weight:700}
 button.dl{font:inherit;font-size:.88rem;padding:8px 14px;border:1px solid var(--marca);color:var(--marca);background:#fff;border-radius:10px;cursor:pointer;font-weight:700}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:14px}
 @media (max-width:640px){.kpis{grid-template-columns:1fr}}
@@ -51,7 +54,8 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
   <div class="card head">
     <div><h1>Clientes sin compra de Softys</h1><div class="meta" id="meta">Cargando…</div></div>
     <div class="ctrl">
-      <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button></div>
+      <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button><button type="button" data-d="mes" id="bMes">Compraron en septiembre</button></div>
+      <label id="lNoAct" class="chk" hidden><input type="checkbox" id="fNoAct"> <span id="tNoAct">Sin compra en octubre</span></label>
       <select id="fVend" aria-label="Vendedor"><option value="">Todos los vendedores</option></select>
       <input id="fCli" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
       <button type="button" class="dl" id="dl">Descargar Excel</button>
@@ -75,6 +79,10 @@ const fmtP=n=>(n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFra
 const dmy=iso=>iso? iso.slice(8)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
 const titulo=s=>{ s=(s||'').trim(); if(!(s===s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(s))) return s; return s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g,(m,a,b)=>a+b.toUpperCase()); };
 const DIA={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado'};
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+// MES_ANT: el mes anterior al actual (hoy septiembre); por cliente, importe de Softys de cada mes
+let MES={}, MES_ANT='', MES_ACT='';
+const nomMes=ym=>MESES[+ym.slice(5,7)-1];
 let CART=null, EQUIPO=null, NOMV={}, ULT={}, DESDE='', HOY='', DIAS=60, abiertos=new Set(), sortK='sin', sortD=-1;
 
 function parseCSV(t){
@@ -89,7 +97,7 @@ function parseCSV(t){
 // ultima factura de Softys de cada cliente (cualquier vendedor), por fecha de comprobante
 function leer(txt){
   const R=parseCSV(txt).filter(r=>r.length>5); const H=R.shift().map(h=>h.trim()); const ix=n=>H.indexOf(n);
-  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cant:ix('CantBase'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
+  const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cant:ix('CantBase'),imp:ix('ImporteItem'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
   for(const r of R){
     const cv=parseInt(r[I.cv],10); if(!isNaN(cv) && r[I.vn] && !NOMV[cv]) NOMV[cv]=titulo(r[I.vn]);
     if((r[I.prov]||'').trim().toUpperCase()!=='SOFTYS ARGENTINA S.A') continue;
@@ -98,15 +106,19 @@ function leer(txt){
     const fc=(r[I.fc]||'').trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(fc) || fc>HOY) continue;
     if(!DESDE || fc<DESDE) DESDE=fc;
     const cli=String(r[I.cli]).trim(); if(!ULT[cli] || fc>ULT[cli]) ULT[cli]=fc;
+    const mc=MES[cli]||(MES[cli]={}), ym=fc.slice(0,7); mc[ym]=(mc[ym]||0)+num(r[I.imp]);
   }
 }
 function calcular(){
-  const lim=new Date(HOY+'T12:00'); lim.setDate(lim.getDate()-DIAS); const corte=lim.toISOString().slice(0,10);
-  const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase();
+  const lim=new Date(HOY+'T12:00'); lim.setDate(lim.getDate()-(DIAS==='mes'? 0 : DIAS)); const corte=lim.toISOString().slice(0,10);
+  const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase(), noAct=$('fNoAct').checked;
+  // modo mes: clientes con compra de Softys en el mes anterior (con la casilla, solo los que todavia no compraron este mes)
+  const entra= DIAS==='mes'? (k=>{ const m=MES[String(k[0])]||{}; return m[MES_ANT]>0 && !(noAct && m[MES_ACT]>0); })
+    : (k=>{ const u=ULT[String(k[0])]; return !u || u<=corte; });
   const V=[];
   for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (EQUIPO && !EQUIPO.has(cv)) || (fv && c!==fv)) continue;
-    const sin=lista.filter(k=>{ const u=ULT[String(k[0])]; return !u || u<=corte; })
-      .map(k=>({cod:String(k[0]), rs:k[1], dir:k[2], loc:k[3], canal:k[4], dia:k[5], ult:ULT[String(k[0])]||''}))
+    const sin=lista.filter(entra)
+      .map(k=>{ const m=MES[String(k[0])]||{}; return {cod:String(k[0]), rs:k[1], dir:k[2], loc:k[3], canal:k[4], dia:k[5], ult:ULT[String(k[0])]||'', ant:m[MES_ANT]||0, act:m[MES_ACT]||0}; })
       .filter(k=>!q || k.cod===q || (k.rs||'').toLowerCase().includes(q));
     V.push({c:cv, n:NOMV[cv]||('Vendedor '+cv), cart:lista.length, sin, p: lista.length? sin.length/lista.length : 0});
   }
@@ -117,37 +129,54 @@ function dibujar(){
   const val={n:v=>v.n, sin:v=>v.sin.length, cart:v=>v.cart, p:v=>v.p};
   V.sort((a,b)=>{ const A=val[sortK](a), B=val[sortK](b); return (A>B?1:A<B?-1:0)*sortD || a.c-b.c; });
   const tSin=V.reduce((a,v)=>a+v.sin.length,0), tCart=V.reduce((a,v)=>a+v.cart,0), nunca=V.reduce((a,v)=>a+v.sin.filter(k=>!k.ult).length,0);
+  const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT), noAct=$('fNoAct').checked;
+  $('lNoAct').hidden=!mes;
+  document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'Sin Softys';
+  if(mes){
+    const tImp=V.reduce((a,v)=>a+v.sin.reduce((b,k)=>b+k.ant,0),0), recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
+    $('meta').textContent=`Clientes de la cartera con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
+    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>
+      <div class="kpi"><div class="l">Compra de Softys en ${nA}</div><div class="v">$ ${fmtN(tImp)}</div><div class="n">con IVA, de esos clientes</div></div>
+      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>`;
+  } else {
   $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
     <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
     <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
+  }
   document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
   let h='';
   for(const v of V){ if(!v.sin.length && $('fCli').value.trim()) continue; const ab=abiertos.has(v.c);
     h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span></div>`;
-    if(ab){ const L=[...v.sin].sort((a,b)=>(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
+    if(ab && mes){ const L=[...v.sin].sort((a,b)=>b.ant-a.ant);
+      h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th style="text-align:right">Softys ${nA}</th><th style="text-align:right">Softys ${nH}</th><th>Última compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td style="text-align:right">$ ${fmtN(k.ant)}</td><td style="text-align:right">${k.act>0? `<span class="si">$ ${fmtN(k.act)}</span>` : `<span class="nunca">Sin compra</span>`}</td><td>${dmy(k.ult)}</td></tr>`).join('')||'<tr><td colspan="7">Sin clientes.</td></tr>'}</tbody></table></div>`; }
+    else if(ab){ const L=[...v.sin].sort((a,b)=>(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th>Última compra Softys</th><th>Días sin compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td>${k.ult? dmy(k.ult) : `<span class="nunca">Sin compras desde ${dmy(DESDE)}</span>`}</td><td>${k.ult? Math.round((new Date(HOY)-new Date(k.ult))/864e5) : '—'}</td></tr>`).join('')||'<tr><td colspan="6">Todos los clientes compraron Softys en el período.</td></tr>'}</tbody></table></div>`; }
   }
   $('filas').innerHTML=h||'<div class="vacio">Sin resultados.</div>';
 }
 function descargar(){
   const {V}=calcular(), sep=';', q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
-  const filas=[['Cod vendedor','Vendedor','Cod cliente','Razon social','Localidad','Dia de visita','Ultima compra Softys'].map(q).join(sep)];
-  for(const v of V) for(const k of v.sin) filas.push([v.c,v.n,k.cod,titulo(k.rs),titulo(k.loc),DIA[k.dia]||'',k.ult? dmy(k.ult) : 'Sin compras'].map(q).join(sep));
+  const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT);
+  const filas=[['Cod vendedor','Vendedor','Cod cliente','Razon social','Localidad','Dia de visita','Ultima compra Softys',...(mes? [`Softys ${nA}`,`Softys ${nH}`] : [])].map(q).join(sep)];
+  for(const v of V) for(const k of v.sin) filas.push([v.c,v.n,k.cod,titulo(k.rs),titulo(k.loc),DIA[k.dia]||'',k.ult? dmy(k.ult) : 'Sin compras',...(mes? [Math.round(k.ant),Math.round(k.act)] : [])].map(q).join(sep));
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+filas.join('\r\n')],{type:'text/csv;charset=utf-8'}));
-  a.download=`clientes-sin-softys-${DIAS}-dias-${HOY}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  a.download= mes? `clientes-softys-${nA}-${HOY}.csv` : `clientes-sin-softys-${DIAS}-dias-${HOY}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
 document.addEventListener('click',e=>{
-  const s=e.target.closest('.seg button'); if(s){ DIAS=+s.dataset.d; document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('sel',b===s)); dibujar(); return; }
+  const s=e.target.closest('.seg button'); if(s){ DIAS= s.dataset.d==='mes'? 'mes' : +s.dataset.d; document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('sel',b===s)); dibujar(); return; }
   const vr=e.target.closest('.vrow'); if(vr){ const c=+vr.dataset.v; abiertos.has(c)? abiertos.delete(c) : abiertos.add(c); dibujar(); return; }
   const th=e.target.closest('.th span[data-k]'); if(th){ const k=th.dataset.k; if(sortK===k) sortD=-sortD; else { sortK=k; sortD=k==='n'? 1 : -1; } dibujar(); }
 });
 document.addEventListener('keydown',e=>{ const vr=e.target.closest&&e.target.closest('.vrow'); if(vr&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); vr.click(); } });
+$('fNoAct').addEventListener('change',dibujar);
 $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input',dibujar); $('dl').addEventListener('click',descargar);
 
 (async function(){
   try{
     HOY=new Date(Date.now()-3*3600e3).toISOString().slice(0,10);
+    MES_ACT=HOY.slice(0,7); { let [y,mm]=MES_ACT.split('-').map(Number); mm--; if(mm<1){mm=12;y--;} MES_ANT=y+'-'+String(mm).padStart(2,'0'); }
+    $('bMes').textContent='Compraron en '+nomMes(MES_ANT); $('tNoAct').textContent='Sin compra en '+nomMes(MES_ACT);
     const html=await (await fetch(B+'index.html?t='+Date.now(),{cache:'no-store'})).text();
     const m=html.match(/^const CFG = (.*);\s*$/m); if(m) JSON.parse(m[1]).vendedores.forEach(v=>NOMV[v.c]=v.n);
     EQUIPO=new Set([2,4,5,6,7,24,26,27,28,29,30,51,52,53,54,56,61,62,63,64,73,74,75]);   // vendedores del reporte (pedido de Bruno, 19/10/2026)
