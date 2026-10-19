@@ -85,6 +85,8 @@ const fmtP=n=>(n*100).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFra
 const dmy=iso=>iso? iso.slice(8)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
 const titulo=s=>{ s=(s||'').trim(); if(!(s===s.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(s))) return s; return s.toLowerCase().replace(/(^|[^a-záéíóúñü])([a-záéíóúñü])/g,(m,a,b)=>a+b.toUpperCase()); };
 const DIA={L:'Lunes',M:'Martes',X:'Miércoles',J:'Jueves',V:'Viernes',S:'Sábado'};
+// orden de la semana para listar los clientes por dia de visita (sin dia al final)
+const ORD_DIA={L:1,M:2,X:3,J:4,V:5,S:6}, porDia=(a,b)=>(ORD_DIA[a.dia]||9)-(ORD_DIA[b.dia]||9);
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 // MES_ANT: el mes anterior al actual (hoy septiembre); por cliente, importe de Softys de cada mes
 let MES={}, MES_ANT='', MES_ACT='';
@@ -163,9 +165,9 @@ function dibujar(){
   let h='';
   for(const v of V){ if(!v.sin.length && $('fCli').value.trim()) continue; const ab=abiertos.has(v.c);
     h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span><span class="r m"><b>${fmtN(COMBOS[v.c]||0)}</b></span></div>`;
-    if(ab && mes){ const L=[...v.sin].sort((a,b)=>b.ant-a.ant);
+    if(ab && mes){ const L=[...v.sin].sort((a,b)=>porDia(a,b)||b.ant-a.ant);
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th style="text-align:right">Softys ${nA}</th><th style="text-align:right">Softys ${nH}</th><th>Última compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td style="text-align:right">$ ${fmtN(k.ant)}</td><td style="text-align:right">${k.act>0? `<span class="si">$ ${fmtN(k.act)}</span>` : `<span class="nunca">Sin compra</span>`}</td><td>${dmy(k.ult)}</td></tr>`).join('')||'<tr><td colspan="7">Sin clientes.</td></tr>'}</tbody></table></div>`; }
-    else if(ab){ const L=[...v.sin].sort((a,b)=>(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
+    else if(ab){ const L=[...v.sin].sort((a,b)=>porDia(a,b)||(a.ult||'').localeCompare(b.ult||'')||a.cod.localeCompare(b.cod,undefined,{numeric:true}));
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th>Última compra Softys</th><th>Días sin compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${esc(titulo(k.loc))}</td><td>${DIA[k.dia]||'—'}</td><td>${k.ult? dmy(k.ult) : `<span class="nunca">Sin compras desde ${dmy(DESDE)}</span>`}</td><td>${k.ult? Math.round((new Date(HOY)-new Date(k.ult))/864e5) : '—'}</td></tr>`).join('')||'<tr><td colspan="6">Todos los clientes compraron Softys en el período.</td></tr>'}</tbody></table></div>`; }
   }
   $('filas').innerHTML=h||'<div class="vacio">Sin resultados.</div>';
@@ -174,7 +176,7 @@ function descargar(){
   const {V}=calcular(), sep=';', q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
   const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT);
   const filas=[['Cod vendedor','Vendedor','Cod cliente','Razon social','Localidad','Dia de visita','Ultima compra Softys',...(mes? [`Softys ${nA}`,`Softys ${nH}`] : [])].map(q).join(sep)];
-  for(const v of V) for(const k of v.sin) filas.push([v.c,v.n,k.cod,titulo(k.rs),titulo(k.loc),DIA[k.dia]||'',k.ult? dmy(k.ult) : 'Sin compras',...(mes? [Math.round(k.ant),Math.round(k.act)] : [])].map(q).join(sep));
+  for(const v of V) for(const k of [...v.sin].sort(porDia)) filas.push([v.c,v.n,k.cod,titulo(k.rs),titulo(k.loc),DIA[k.dia]||'',k.ult? dmy(k.ult) : 'Sin compras',...(mes? [Math.round(k.ant),Math.round(k.act)] : [])].map(q).join(sep));
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+filas.join('\r\n')],{type:'text/csv;charset=utf-8'}));
   a.download= mes? `clientes-softys-${nA}-${HOY}.csv` : `clientes-sin-softys-${DIAS}-dias-${HOY}.csv`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
