@@ -150,12 +150,12 @@ function dibujar(){
   $('lNoAct').hidden=!mes;
   document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'Sin Softys';
   if(mes){
-    const tImp=V.reduce((a,v)=>a+v.sin.reduce((b,k)=>b+k.ant,0),0), recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
+    const recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
     $('meta').textContent=`Clientes de la cartera con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
-    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>
-      <div class="kpi"><div class="l">Compra de Softys en ${nA}</div><div class="v">$ ${fmtN(tImp)}</div><div class="n">con IVA, de esos clientes</div></div>
-      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>`;
+    $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
+    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>`;
   } else {
+  $('kpis').style.gridTemplateColumns='';
   $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
     <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
