@@ -221,6 +221,7 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
     const txts=await Promise.all(meses.map(async ym=>{ const r=await fetch(RAW+ult[ym].split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}); return r.ok? new TextDecoder('windows-1252').decode(await r.arrayBuffer()) : ''; }));
     txts.forEach(t=>leer(t));
     BASE={ULT:{...ULT}, MES:JSON.parse(JSON.stringify(MES)), COMBOS:{...COMBOS}};   // lo de los archivos del mes; lo de hoy se suma encima
+    await cargarCombos();
     const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c) && (!EQUIPO || EQUIPO.has(c))).sort((a,b)=>a-b);
     $('fVend').innerHTML+=vs.map(c=>`<option value="${c}">${c} · ${esc(NOMV[c]||'Vendedor '+c)}</option>`).join('');
     dibujar();
@@ -229,6 +230,19 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) enVivo(); });
   }catch(e){ $('meta').textContent='No se pudieron leer los datos: '+e.message; }
 })();
+
+// ---- Combos del mes por vendedor (pedido de Bruno, 20/10/2026): Gescom guarda los combos aparte de los articulos
+// (cada articulo del combo va con su codigo), por eso no salen de los CSV de ventas. El robot de combos del Reporte
+// diario sube vivo/combos.json cada 15 minutos con pedidos de hoy y facturados del mes ----
+let combosAct='';
+async function cargarCombos(){
+  try{
+    const j=await (await fetch(RAW+'vivo/combos.json?t='+Date.now(),{cache:'no-store'})).json();
+    const c=j&&j.mes===MES_ACT&&j.combos&&j.combos[COMBO_COD]; if(!c||j.actualizado===combosAct) return false;
+    combosAct=j.actualizado; const v={}; for(const k in c.v) v[+k]=c.v[k];
+    reemplazar(COMBOS,v); if(BASE) BASE.COMBOS={...v}; return true;
+  }catch(e){ return false; }
+}
 
 // ---- En vivo (pedido de Bruno, 20/10/2026): el robot del Reporte diario sube vivo/hoy.csv con lo cargado hoy cada vez que
 // la base de Gescom suma ventas (cada hora en punto, de 7 a 17). Se rehace la cuenta sin recargar ni cerrar lo abierto ----
@@ -251,6 +265,7 @@ async function enVivo(){
       leer(txt,true); vivoCorte=est.corte; dibujar();
     }
   }catch(e){ /* sin conexion o sin archivo todavia: se reintenta en la proxima vuelta */ }
+  if(await cargarCombos()) dibujar();
   marcaVivo();
 }
 </script>
