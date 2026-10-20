@@ -158,19 +158,22 @@ function dibujar(){
   V.sort((a,b)=>{ const A=val[sortK](a), B=val[sortK](b); return (A>B?1:A<B?-1:0)*sortD || a.c-b.c; });
   const tSin=V.reduce((a,v)=>a+v.sin.length,0), tCart=V.reduce((a,v)=>a+v.cart,0), nunca=V.reduce((a,v)=>a+v.sin.filter(k=>!k.ult).length,0);
   const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT), noAct=$('fNoAct').checked;
+  // total de combos vendidos en el mes (de los vendedores que se ven; pedido de Bruno, 20/10/2026)
+  const tComb=V.reduce((a,v)=>a+(COMBOS[v.c]||0),0), cliComb=V.reduce((a,v)=>a+(COMBO_DET[v.c]||[]).filter(x=>x[1]>0).length,0), venComb=V.filter(v=>(COMBOS[v.c]||0)>0).length;
+  const kCombo=`<div class="kpi"><div class="l">Combos ${COMBO_COD} vendidos en ${nH}</div><div class="v" style="color:var(--marca)">${fmtN(tComb)}</div><div class="n">${tComb? `a ${fmtN(cliComb)} cliente${cliComb===1?'':'s'} · ${fmtN(venComb)} vendedor${venComb===1?'':'es'} con combos` : 'todavía no hay combos cargados'}</div></div>`;
   $('lNoAct').hidden=!mes;
   document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'Sin Softys';
   if(mes){
     const recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
     $('meta').textContent=`Clientes de la cartera con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
     $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
-    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>`;
+    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>${kCombo}`;
   } else {
-  $('kpis').style.gridTemplateColumns='';
+  $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
   $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${vivoCorte? ` · los pedidos de Softys cargados hoy ya cuentan como compra` : ''}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin compra de Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
     <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
-    <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
+    <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>${kCombo}`;
   }
   document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
   let h='';
