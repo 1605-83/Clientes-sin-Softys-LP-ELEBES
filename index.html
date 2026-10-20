@@ -157,7 +157,7 @@ function dibujar(){
   } else {
   $('kpis').style.gridTemplateColumns='';
   $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
-  $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
+  $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin compra de Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
     <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
     <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
   }
