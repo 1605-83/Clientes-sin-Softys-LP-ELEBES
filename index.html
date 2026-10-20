@@ -238,6 +238,8 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
 // (cada articulo del combo va con su codigo), por eso no salen de los CSV de ventas. El robot de combos del Reporte
 // diario sube vivo/combos.json cada 15 minutos con pedidos de hoy y facturados del mes ----
 let combosAct='', COMBO_DET={};
+// ultima factura de Softys del cliente: la de los archivos del mes (sin los pedidos de hoy, que ya cuentan como compra en la lista)
+const ultFact=cli=>((BASE&&BASE.ULT)||ULT)[String(cli).trim()]||'';
 // clientes a los que el vendedor les vendio el combo en el mes (aparte de la lista de sin compra: el combo es de Softys)
 function bloqueCombos(v){
   const L=(COMBO_DET[v.c]||[]).filter(x=>x[1]); if(!L.length) return '';
@@ -246,8 +248,8 @@ function bloqueCombos(v){
     .sort((a,b)=>porDia(a,b)||a.fecha.localeCompare(b.fecha));
   const tot=fil.reduce((a,x)=>a+x.cant,0);
   return `<div class="det cmb"><div class="cmbT">Combos ${COMBO_COD} vendidos en ${nomMes(MES_ACT)} · ${fmtN(tot)} combo${tot===1?'':'s'} a ${fil.length} cliente${fil.length===1?'':'s'}</div>
-    <table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th style="text-align:right">Combos</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>${
-    fil.map(x=>`<tr><td><b>${esc(x.cli)}</b></td><td>${x.rs? esc(titulo(x.rs)) : '<span class="nunca">Sin ficha en Gescom</span>'}</td><td>${esc(titulo(x.loc))}</td><td>${DIA[x.dia]||''}</td><td style="text-align:right"><b>${fmtN(x.cant)}</b></td><td>${dmy(x.fecha)}</td><td>${x.fact? 'Facturado' : 'Pedido de hoy'}</td></tr>`).join('')}</tbody></table></div>`;
+    <table><thead><tr><th>Código</th><th>Razón social</th><th>Localidad</th><th>Día de visita</th><th style="text-align:right">Combos</th><th>Fecha</th><th title="Última factura de Softys del cliente, sin contar los pedidos de hoy">Última compra Softys</th><th>Estado</th></tr></thead><tbody>${
+    fil.map(x=>`<tr><td><b>${esc(x.cli)}</b></td><td>${x.rs? esc(titulo(x.rs)) : '<span class="nunca">Sin ficha en Gescom</span>'}</td><td>${esc(titulo(x.loc))}</td><td>${DIA[x.dia]||''}</td><td style="text-align:right"><b>${fmtN(x.cant)}</b></td><td>${dmy(x.fecha)}</td><td>${ultFact(x.cli)? dmy(ultFact(x.cli)) : `<span class="nunca">Sin compras desde ${dmy(DESDE)}</span>`}</td><td>${x.fact? 'Facturado' : 'Pedido de hoy'}</td></tr>`).join('')}</tbody></table></div>`;
 }
 async function cargarCombos(){
   try{
