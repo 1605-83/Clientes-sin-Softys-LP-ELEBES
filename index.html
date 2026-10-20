@@ -17,6 +17,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:Roboto,system-ui
 .head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 22px;border-top:5px solid var(--marca)}
 .head h1{margin:0;font-size:1.4rem;font-weight:700;color:var(--marca)}
 .meta{font-size:.88rem;color:var(--ink2);margin-top:3px}
+.head h1{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.vivo{display:inline-flex;align-items:center;gap:7px;font-size:.76rem;font-weight:500;color:#1E7B34;background:#E8F6EC;border-radius:999px;padding:4px 11px 4px 9px;letter-spacing:.01em}
+.vivo i{width:9px;height:9px;border-radius:50%;background:#2DB34A;animation:latido 2s infinite}
+.vivo.off{color:var(--ink2);background:#EEF0F3}.vivo.off i{background:#9AA1AB;animation:none}
+@keyframes latido{0%{box-shadow:0 0 0 0 rgba(45,179,74,.55)}70%{box-shadow:0 0 0 8px rgba(45,179,74,0)}100%{box-shadow:0 0 0 0 rgba(45,179,74,0)}}
+@media (prefers-reduced-motion:reduce){.vivo i{animation:none}}
 .ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{font:inherit;font-size:.92rem;font-weight:700;padding:8px 16px;border:0;background:#fff;color:var(--ink2);cursor:pointer}
@@ -57,7 +63,7 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
 <body>
 <div class="wrap">
   <div class="card head">
-    <div><h1>Clientes sin compra de Softys</h1><div class="meta" id="meta">Cargando…</div></div>
+    <div><h1>Clientes sin compra de Softys <span class="vivo off" id="vivo" hidden><i aria-hidden="true"></i><span id="vivoTxt"></span></span></h1><div class="meta" id="meta">Cargando…</div></div>
     <div class="cobeq" id="cobEq" title="Clientes de la cartera del equipo con compra de Softys en el mes"></div>
     <div class="ctrl">
       <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button><button type="button" data-d="mes" id="bMes">Compraron en septiembre</button></div>
@@ -105,10 +111,13 @@ function parseCSV(t){
   return rows;
 }
 // ultima factura de Softys de cada cliente (cualquier vendedor), por fecha de comprobante
-function leer(txt){
-  const R=parseCSV(txt).filter(r=>r.length>5); const H=R.shift().map(h=>h.trim()); const ix=n=>H.indexOf(n);
+// vivo=true: vivo/hoy.csv del robot en vivo. Solo se toman los pedidos de hoy todavia sin facturar (los facturados ya
+// vienen en el archivo del mes) y cuentan como compra de hoy: el cliente que pidio Softys sale de la lista en el momento
+function leer(txt, vivo){
+  const R=parseCSV(txt).filter(r=>r.length>5); if(!R.length) return; const H=R.shift().map(h=>h.trim()); const ix=n=>H.indexOf(n);
   const I={cli:ix('Cliente'),fc:ix('FechaComprobante'),nro:ix('NroComprobante'),cod:ix('Codigo'),cant:ix('CantBase'),imp:ix('ImporteItem'),cv:ix('CodVendedor'),vn:ix('Vendedor'),prov:ix('Proveedor')};
   for(const r of R){
+    if(vivo){ if((r[I.fc]||'').trim()) continue; r[I.fc]=HOY; }
     const cv=parseInt(r[I.cv],10); if(!isNaN(cv) && r[I.vn] && !NOMV[cv]) NOMV[cv]=titulo(r[I.vn]);
     // combos vendidos en el mes por vendedor (cantidad neta: las notas de credito restan)
     if(COMBO.has((r[I.cod]||'').trim()) && (r[I.fc]||'').trim().slice(0,7)===MES_ACT && !isNaN(cv)) COMBOS[cv]=(COMBOS[cv]||0)+num(r[I.cant]);   // en las notas de credito la cantidad ya viene negativa
@@ -156,7 +165,7 @@ function dibujar(){
     $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>`;
   } else {
   $('kpis').style.gridTemplateColumns='';
-  $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
+  $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${vivoCorte? ` · los pedidos de Softys cargados hoy ya cuentan como compra` : ''}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin compra de Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días</div></div>
     <div class="kpi"><div class="l">% de la cartera</div><div class="v">${tCart? fmtP(tSin/tCart) : '—'}</div><div class="n">${fmtN(tCart)} clientes activos en ${V.length} carteras</div></div>
     <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
@@ -210,12 +219,40 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
     const meses=Object.keys(ult).sort().slice(-4);
     $('meta').textContent='Bajando ventas…';
     const txts=await Promise.all(meses.map(async ym=>{ const r=await fetch(RAW+ult[ym].split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}); return r.ok? new TextDecoder('windows-1252').decode(await r.arrayBuffer()) : ''; }));
-    txts.forEach(leer);
+    txts.forEach(t=>leer(t));
+    BASE={ULT:{...ULT}, MES:JSON.parse(JSON.stringify(MES)), COMBOS:{...COMBOS}};   // lo de los archivos del mes; lo de hoy se suma encima
     const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c) && (!EQUIPO || EQUIPO.has(c))).sort((a,b)=>a-b);
     $('fVend').innerHTML+=vs.map(c=>`<option value="${c}">${c} · ${esc(NOMV[c]||'Vendedor '+c)}</option>`).join('');
     dibujar();
+    await enVivo();
+    setInterval(enVivo, 2*60e3);   // revisa cada 2 minutos si el robot subio pedidos nuevos
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) enVivo(); });
   }catch(e){ $('meta').textContent='No se pudieron leer los datos: '+e.message; }
 })();
+
+// ---- En vivo (pedido de Bruno, 20/10/2026): el robot del Reporte diario sube vivo/hoy.csv con lo cargado hoy cada vez que
+// la base de Gescom suma ventas (cada hora en punto, de 7 a 17). Se rehace la cuenta sin recargar ni cerrar lo abierto ----
+let BASE=null, vivoCorte='';
+const reemplazar=(dst,src)=>{ for(const k in dst) delete dst[k]; Object.assign(dst,src); };
+function marcaVivo(){
+  const b=$('vivo'), h=new Date(), hh=String(h.getHours()).padStart(2,'0')+':'+String(h.getMinutes()).padStart(2,'0');
+  b.hidden=false; b.classList.toggle('off',!vivoCorte);
+  $('vivoTxt').textContent= vivoCorte? `En vivo · pedidos de hoy al ${vivoCorte.slice(11)} · revisado ${hh}` : `Esperando los pedidos de hoy · revisado ${hh}`;
+  b.title='La página se actualiza sola: revisa cada 2 minutos si la base de Gescom tiene pedidos nuevos (la base los suma cada hora en punto, de 7 a 17). Un cliente con pedido de Softys cargado hoy ya no figura como sin compra.';
+}
+async function enVivo(){
+  try{
+    const est=await (await fetch(RAW+'vivo/estado.json?t='+Date.now(),{cache:'no-store'})).json();
+    const dia=HOY.slice(8)+'-'+HOY.slice(5,7)+'-'+HOY.slice(0,4);
+    if(est.dia===dia && est.corte!==vivoCorte){
+      const r=await fetch(RAW+'vivo/hoy.csv?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error('hoy.csv '+r.status);
+      const txt=new TextDecoder('windows-1252').decode(await r.arrayBuffer());
+      reemplazar(ULT,{...BASE.ULT}); reemplazar(MES,JSON.parse(JSON.stringify(BASE.MES))); reemplazar(COMBOS,{...BASE.COMBOS});
+      leer(txt,true); vivoCorte=est.corte; dibujar();
+    }
+  }catch(e){ /* sin conexion o sin archivo todavia: se reintenta en la proxima vuelta */ }
+  marcaVivo();
+}
 </script>
 </body>
 </html>
