@@ -79,6 +79,7 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
       <div class="seg" role="group" aria-label="Período"><button type="button" data-d="60" class="sel">Últimos 60 días</button><button type="button" data-d="90">Últimos 90 días</button><button type="button" data-d="mes" id="bMes">Compraron en septiembre</button></div>
       <label id="lNoAct" class="chk" hidden><input type="checkbox" id="fNoAct"> <span id="tNoAct">Sin compra en octubre</span></label>
       <select id="fVend" aria-label="Vendedor"><option value="">Todos los vendedores</option></select>
+      <select id="fDiaV" aria-label="Día de visita"><option value="">Todos los días</option><option value="L">Lunes</option><option value="M">Martes</option><option value="X">Miércoles</option><option value="J">Jueves</option><option value="V">Viernes</option><option value="S">Sábado</option></select>
       <input id="fCli" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
       <button type="button" class="dl" id="bDia" aria-pressed="false">Venta por día</button>
       <button type="button" class="dl" id="dl">Descargar Excel</button>
@@ -147,12 +148,14 @@ function leer(txt, vivo){
 }
 function calcular(){
   const lim=new Date(HOY+'T12:00'); lim.setDate(lim.getDate()-(DIAS==='mes'? 0 : DIAS)); const corte=lim.toISOString().slice(0,10);
-  const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase(), noAct=$('fNoAct').checked;
+  const fv=$('fVend').value, q=$('fCli').value.trim().toLowerCase(), noAct=$('fNoAct').checked, fd=$('fDiaV').value;
   // modo mes: clientes con compra de Softys en el mes anterior (con la casilla, solo los que todavia no compraron este mes)
   const entra= DIAS==='mes'? (k=>{ const m=MES[String(k[0])]||{}; return m[MES_ANT]>0 && !(noAct && m[MES_ACT]>0); })
     : (k=>{ const u=ULT[String(k[0])]; return !u || u<=corte; });
   const V=[];
-  for(const [c,lista] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (EQUIPO && !EQUIPO.has(cv)) || (fv && c!==fv)) continue;
+  for(const [c,todos] of Object.entries(CART.v)){ const cv=+c; if(EXCLUIR_V.has(cv) || (EQUIPO && !EQUIPO.has(cv)) || (fv && c!==fv)) continue;
+    // con el filtro de dia, la cartera es la de ese dia de visita (asi el % es sobre los clientes de ese dia)
+    const lista= fd? todos.filter(k=>String(k[5]||'').includes(fd)) : todos; if(fd && !lista.length) continue;
     const sin=lista.filter(entra)
       .map(k=>{ const m=MES[String(k[0])]||{}; return {cod:String(k[0]), rs:k[1], dir:k[2], loc:k[3], canal:k[4], dia:k[5], ult:ULT[String(k[0])]||'', ant:m[MES_ANT]||0, act:m[MES_ACT]||0}; })
       .filter(k=>!q || k.cod===q || (k.rs||'').toLowerCase().includes(q));
@@ -178,12 +181,12 @@ function dibujar(){
   document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'NC Softys';
   if(mes){
     const recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
-    $('meta').textContent=`Clientes de la cartera con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
+    $('meta').textContent=`Clientes de la cartera${$('fDiaV').value? ' con visita el '+DIA[$('fDiaV').value].toLowerCase() : ''} con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
     $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
     $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>${kCombo}`;
   } else {
   $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
-  $('meta').textContent=`Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${vivoCorte? ` · los pedidos de Softys cargados hoy ya cuentan como compra` : ''}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
+  $('meta').textContent=`${$('fDiaV').value? 'Clientes con visita el '+DIA[$('fDiaV').value].toLowerCase()+' · ' : ''}Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${vivoCorte? ` · los pedidos de Softys cargados hoy ya cuentan como compra` : ''}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin compra de Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días · ${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes</div></div>
     ${kCombo}
     <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
@@ -205,12 +208,13 @@ function dibujar(){
 function dibujarDia(){
   const el=$('vDia'); el.hidden=!verDia; $('bDia').setAttribute('aria-pressed',String(verDia)); if(!verDia) return;
   const fv=$('fVend').value, ok=cv=>!EXCLUIR_V.has(cv) && (!EQUIPO || EQUIPO.has(cv)) && (!fv || String(cv)===fv);
-  const dias=Object.keys(VDIA).filter(d=>d.slice(0,7)===MES_ACT && d<=HOY).sort().reverse().map(d=>{
+  const fd=$('fDiaV').value, nDia={L:1,M:2,X:3,J:4,V:5,S:6}[fd];   // con el filtro de dia de visita, solo los lunes, martes, etc.
+  const dias=Object.keys(VDIA).filter(d=>d.slice(0,7)===MES_ACT && d<=HOY && (!fd || new Date(d+'T12:00').getDay()===nDia)).sort().reverse().map(d=>{
     const vs=Object.entries(VDIA[d]).map(([c,x])=>({c:+c,imp:x.imp,ncli:Object.keys(x.cli).length})).filter(o=>ok(o.c)).sort((a,b)=>b.imp-a.imp);
     return {d, vs, imp:vs.reduce((a,o)=>a+o.imp,0), ncli:new Set(vs.flatMap(o=>Object.keys(VDIA[d][o.c].cli))).size}; }).filter(o=>o.vs.length);
   const max=Math.max(1,...dias.map(o=>o.imp)), tot=dias.reduce((a,o)=>a+o.imp,0), prom=dias.length? tot/dias.length : 0;
   const DS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], nd=d=>`${DS[new Date(d+'T12:00').getDay()]} ${d.slice(8)}/${d.slice(5,7)}`;
-  let h=`<h2>Venta de Softys por día · ${nomMes(MES_ACT)}${fv? ' · '+esc(NOMV[+fv]||'Vendedor '+fv) : ''}</h2><div class="sub">Facturado por fecha de comprobante; hoy suma los pedidos cargados y se actualiza en vivo${vivoCorte? ` (pedidos al ${vivoCorte.slice(11)})` : ''} · tocá un día para verlo por vendedor</div>`
+  let h=`<h2>Venta de Softys por día · ${nomMes(MES_ACT)}${fv? ' · '+esc(NOMV[+fv]||'Vendedor '+fv) : ''}${fd? ' · solo los '+({L:'lunes',M:'martes',X:'miércoles',J:'jueves',V:'viernes',S:'sábados'}[fd]) : ''}</h2><div class="sub">Facturado por fecha de comprobante; hoy suma los pedidos cargados y se actualiza en vivo${vivoCorte? ` (pedidos al ${vivoCorte.slice(11)})` : ''} · tocá un día para verlo por vendedor</div>`
     + `<div class="dtot"><span>Total del mes <b>$ ${fmtN(tot)}</b></span><span>Promedio por día <b>$ ${fmtN(prom)}</b></span><span>Días con venta <b>${dias.length}</b></span></div>`;
   for(const o of dias){ const ab=diasAb.has(o.d);
     h+=`<div class="drow${o.d===HOY?' hoy':''}" data-dd="${o.d}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">${ab?'⌄':'›'}</span><b class="d">${nd(o.d)}</b><span class="bar"><i style="width:${Math.max(o.imp,0)/max*100}%"></i></span><span class="r"><b>$ ${fmtN(o.imp)}</b></span><span class="r m">${fmtN(o.ncli)} cliente${o.ncli===1?'':'s'}</span></div>`;
@@ -234,7 +238,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{ const vr=e.target.closest&&e.target.closest('.vrow,.drow'); if(vr&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); vr.click(); } });
 $('fNoAct').addEventListener('change',dibujar);
-$('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input',dibujar); $('dl').addEventListener('click',descargar);
+$('fVend').addEventListener('change',dibujar); $('fDiaV').addEventListener('change',dibujar); $('fCli').addEventListener('input',dibujar); $('dl').addEventListener('click',descargar);
 
 (async function(){
   try{
