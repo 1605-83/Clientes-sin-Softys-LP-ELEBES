@@ -59,6 +59,14 @@ button.dl{font:inherit;font-size:.88rem;padding:8px 14px;border:1px solid var(--
 .nunca{color:var(--rojo);font-weight:700}
 .vacio{padding:30px;text-align:center;color:var(--ink2)}
 @media (max-width:700px){.th{display:none}.vrow{grid-template-columns:22px 1fr auto}.vrow .m{display:none}.det{padding-left:10px}}
+/* venta de Softys por dia (pedido de Bruno, 21/10/2026) */
+.vdia{padding:16px 20px}.vdia h2{margin:0 0 2px;font-size:1rem}.vdia .sub{color:var(--ink2);font-size:.82rem;margin-bottom:12px}
+.drow{display:grid;grid-template-columns:22px 110px minmax(0,1fr) 120px 90px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #EEF0F4;cursor:pointer;font-size:.9rem}
+.drow:hover{background:#FAFBFD}.drow .r{text-align:right}.drow .bar{height:10px}
+.drow.hoy b.d::after{content:' · hoy';color:var(--verde);font-weight:700}
+.dvend{padding:4px 0 10px 32px}.dvend table{width:100%;border-collapse:collapse;font-size:.85rem}.dvend td{padding:4px 8px;border-top:1px solid #F1F3F6}.dvend td.r{text-align:right}
+.dtot{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:8px;font-size:.88rem;color:var(--ink2)}.dtot b{color:var(--ink);font-size:1.05rem}
+@media (max-width:700px){.drow{grid-template-columns:18px 84px minmax(0,1fr) 96px}.drow .m{display:none}}
 footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
 </style>
 </head>
@@ -72,10 +80,12 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
       <label id="lNoAct" class="chk" hidden><input type="checkbox" id="fNoAct"> <span id="tNoAct">Sin compra en octubre</span></label>
       <select id="fVend" aria-label="Vendedor"><option value="">Todos los vendedores</option></select>
       <input id="fCli" type="search" placeholder="Buscar cliente" aria-label="Buscar cliente">
+      <button type="button" class="dl" id="bDia" aria-pressed="false">Venta por día</button>
       <button type="button" class="dl" id="dl">Descargar Excel</button>
     </div>
   </div>
   <div class="card kpis" id="kpis"></div>
+  <div class="card vdia" id="vDia" hidden></div>
   <div class="card lista">
     <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">NC Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span><span class="r" data-k="combo" id="thCombo">Combos 1137</span></div>
     <div id="filas"></div>
@@ -98,6 +108,8 @@ const ORD_DIA={L:1,M:2,X:3,J:4,V:5,S:6}, porDia=(a,b)=>(ORD_DIA[a.dia]||9)-(ORD_
 const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 // MES_ANT: el mes anterior al actual (hoy septiembre); por cliente, importe de Softys de cada mes
 let MES={}, MES_ANT='', MES_ACT='';
+// VDIA: venta de Softys por dia de comprobante y vendedor {fecha:{vendedor:{imp, cli:{cliente:importe}}}} (los pedidos de hoy cuentan en hoy)
+const VDIA={}; let verDia=false, diasAb=new Set();
 // combo de Softys que se cuenta por vendedor (codigo corto y con el prefijo 150 de Softys)
 const COMBO_COD='1137', COMBO=new Set([COMBO_COD,'150'+COMBO_COD]), COMBOS={};
 const nomMes=ym=>MESES[+ym.slice(5,7)-1];
@@ -130,6 +142,7 @@ function leer(txt, vivo){
     if(!DESDE || fc<DESDE) DESDE=fc;
     const cli=String(r[I.cli]).trim(); if(!ULT[cli] || fc>ULT[cli]) ULT[cli]=fc;
     const mc=MES[cli]||(MES[cli]={}), ym=fc.slice(0,7); mc[ym]=(mc[ym]||0)+num(r[I.imp]);
+    if(!isNaN(cv)){ const d=VDIA[fc]||(VDIA[fc]={}), x=d[cv]||(d[cv]={imp:0,cli:{}}); x.imp+=num(r[I.imp]); x.cli[cli]=(x.cli[cli]||0)+num(r[I.imp]); }
   }
 }
 function calcular(){
@@ -186,6 +199,23 @@ function dibujar(){
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Día de visita</th><th>Última compra Softys</th><th>Días sin compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${DIA[k.dia]||'—'}</td><td>${k.ult? dmy(k.ult) : `<span class="nunca">Sin compras desde ${dmy(DESDE)}</span>`}</td><td>${k.ult? Math.round((new Date(HOY)-new Date(k.ult))/864e5) : '—'}</td></tr>`).join('')||'<tr><td colspan="5">Todos los clientes compraron Softys en el período.</td></tr>'}</tbody></table></div>`; }
   }
   $('filas').innerHTML=h||'<div class="vacio">Sin resultados.</div>';
+  dibujarDia();
+}
+// venta de Softys por dia del mes en curso (con el filtro de vendedor); tocando un dia se ve por vendedor
+function dibujarDia(){
+  const el=$('vDia'); el.hidden=!verDia; $('bDia').setAttribute('aria-pressed',String(verDia)); if(!verDia) return;
+  const fv=$('fVend').value, ok=cv=>!EXCLUIR_V.has(cv) && (!EQUIPO || EQUIPO.has(cv)) && (!fv || String(cv)===fv);
+  const dias=Object.keys(VDIA).filter(d=>d.slice(0,7)===MES_ACT && d<=HOY).sort().reverse().map(d=>{
+    const vs=Object.entries(VDIA[d]).map(([c,x])=>({c:+c,imp:x.imp,ncli:Object.keys(x.cli).length})).filter(o=>ok(o.c)).sort((a,b)=>b.imp-a.imp);
+    return {d, vs, imp:vs.reduce((a,o)=>a+o.imp,0), ncli:new Set(vs.flatMap(o=>Object.keys(VDIA[d][o.c].cli))).size}; }).filter(o=>o.vs.length);
+  const max=Math.max(1,...dias.map(o=>o.imp)), tot=dias.reduce((a,o)=>a+o.imp,0), prom=dias.length? tot/dias.length : 0;
+  const DS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'], nd=d=>`${DS[new Date(d+'T12:00').getDay()]} ${d.slice(8)}/${d.slice(5,7)}`;
+  let h=`<h2>Venta de Softys por día · ${nomMes(MES_ACT)}${fv? ' · '+esc(NOMV[+fv]||'Vendedor '+fv) : ''}</h2><div class="sub">Facturado por fecha de comprobante; hoy suma los pedidos cargados y se actualiza en vivo${vivoCorte? ` (pedidos al ${vivoCorte.slice(11)})` : ''} · tocá un día para verlo por vendedor</div>`
+    + `<div class="dtot"><span>Total del mes <b>$ ${fmtN(tot)}</b></span><span>Promedio por día <b>$ ${fmtN(prom)}</b></span><span>Días con venta <b>${dias.length}</b></span></div>`;
+  for(const o of dias){ const ab=diasAb.has(o.d);
+    h+=`<div class="drow${o.d===HOY?' hoy':''}" data-dd="${o.d}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">${ab?'⌄':'›'}</span><b class="d">${nd(o.d)}</b><span class="bar"><i style="width:${Math.max(o.imp,0)/max*100}%"></i></span><span class="r"><b>$ ${fmtN(o.imp)}</b></span><span class="r m">${fmtN(o.ncli)} cliente${o.ncli===1?'':'s'}</span></div>`;
+    if(ab) h+=`<div class="dvend"><table><tbody>${o.vs.map(v=>`<tr><td><span class="cod">${v.c}</span>${esc(NOMV[v.c]||'Vendedor '+v.c)}</td><td class="r"><b>$ ${fmtN(v.imp)}</b></td><td class="r">${fmtN(v.ncli)} cliente${v.ncli===1?'':'s'}</td><td class="r">${o.imp>0? fmtP(v.imp/o.imp) : '—'}</td></tr>`).join('')}</tbody></table></div>`; }
+  el.innerHTML= dias.length? h : h+'<div class="vacio">Todavía no hay venta de Softys este mes.</div>';
 }
 function descargar(){
   const {V}=calcular(), sep=';', q=s=>'"'+String(s??'').replace(/"/g,'""')+'"';
@@ -197,10 +227,12 @@ function descargar(){
 }
 document.addEventListener('click',e=>{
   const s=e.target.closest('.seg button'); if(s){ DIAS= s.dataset.d==='mes'? 'mes' : +s.dataset.d; document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('sel',b===s)); dibujar(); return; }
+  if(e.target.closest('#bDia')){ verDia=!verDia; dibujarDia(); if(verDia) $('vDia').scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  const dd=e.target.closest('.drow'); if(dd){ const d=dd.dataset.dd; diasAb.has(d)? diasAb.delete(d) : diasAb.add(d); dibujarDia(); return; }
   const vr=e.target.closest('.vrow'); if(vr){ const c=+vr.dataset.v; abiertos.has(c)? abiertos.delete(c) : abiertos.add(c); dibujar(); return; }
   const th=e.target.closest('.th span[data-k]'); if(th){ const k=th.dataset.k; if(sortK===k) sortD=-sortD; else { sortK=k; sortD=k==='n'? 1 : -1; } dibujar(); }
 });
-document.addEventListener('keydown',e=>{ const vr=e.target.closest&&e.target.closest('.vrow'); if(vr&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); vr.click(); } });
+document.addEventListener('keydown',e=>{ const vr=e.target.closest&&e.target.closest('.vrow,.drow'); if(vr&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); vr.click(); } });
 $('fNoAct').addEventListener('change',dibujar);
 $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input',dibujar); $('dl').addEventListener('click',descargar);
 
@@ -221,12 +253,15 @@ $('fVend').addEventListener('change',dibujar); $('fCli').addEventListener('input
       for(const k in CART.v) CART.v[k]=CART.v[k].map(r=>r.map(x=>typeof x==='string'? arreglar(x) : x)); }
     const arch=((await (await fetch(B+'archivos.json?t='+Date.now(),{cache:'no-store'})).json()).archivos||[]);
     // ultimo archivo de cada mes de los ultimos 4 meses
-    const ult={}; for(const p of arch){ const mm=p.match(/ventas-(\d{4}-\d{2})-/); if(mm && (!ult[mm[1]]||p>ult[mm[1]])) ult[mm[1]]=p; }
-    const meses=Object.keys(ult).sort().slice(-4);
+    const porMes={}; for(const p of arch){ const mm=p.match(/ventas-(\d{4}-\d{2})-/); if(mm) (porMes[mm[1]]||(porMes[mm[1]]=[])).push(p); }
+    const meses=Object.keys(porMes).sort().slice(-4);
     $('meta').textContent='Bajando ventas…';
-    const txts=await Promise.all(meses.map(async ym=>{ const r=await fetch(RAW+ult[ym].split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}); return r.ok? new TextDecoder('windows-1252').decode(await r.arrayBuffer()) : ''; }));
+    // si el archivo mas nuevo de un mes todavia no se puede bajar (el robot recien lo subio), se usa el anterior de ese mes
+    const txts=await Promise.all(meses.map(async ym=>{ for(const p of porMes[ym].sort().reverse().slice(0,3)){
+      const r=await fetch(RAW+p.split('/').map(encodeURIComponent).join('/'),{cache:'no-store'}).catch(()=>null); if(r&&r.ok) return new TextDecoder('windows-1252').decode(await r.arrayBuffer()); }
+      return ''; }));
     txts.forEach(t=>leer(t));
-    BASE={ULT:{...ULT}, MES:JSON.parse(JSON.stringify(MES)), COMBOS:{...COMBOS}};   // lo de los archivos del mes; lo de hoy se suma encima
+    BASE={ULT:{...ULT}, MES:JSON.parse(JSON.stringify(MES)), COMBOS:{...COMBOS}, VDIA:JSON.parse(JSON.stringify(VDIA))};   // lo de los archivos del mes; lo de hoy se suma encima
     await cargarCombos();
     const vs=Object.keys(CART.v).map(Number).filter(c=>!EXCLUIR_V.has(c) && (!EQUIPO || EQUIPO.has(c))).sort((a,b)=>a-b);
     $('fVend').innerHTML+=vs.map(c=>`<option value="${c}">${c} · ${esc(NOMV[c]||'Vendedor '+c)}</option>`).join('');
@@ -280,7 +315,7 @@ async function enVivo(){
     if(est.dia===dia && est.corte!==vivoCorte){
       const r=await fetch(RAW+'vivo/hoy.csv?t='+Date.now(),{cache:'no-store'}); if(!r.ok) throw new Error('hoy.csv '+r.status);
       const txt=new TextDecoder('windows-1252').decode(await r.arrayBuffer());
-      reemplazar(ULT,{...BASE.ULT}); reemplazar(MES,JSON.parse(JSON.stringify(BASE.MES))); reemplazar(COMBOS,{...BASE.COMBOS});
+      reemplazar(ULT,{...BASE.ULT}); reemplazar(MES,JSON.parse(JSON.stringify(BASE.MES))); reemplazar(COMBOS,{...BASE.COMBOS}); reemplazar(VDIA,JSON.parse(JSON.stringify(BASE.VDIA)));
       leer(txt,true); vivoCorte=est.corte; dibujar();
     }
   }catch(e){ /* sin conexion o sin archivo todavia: se reintenta en la proxima vuelta */ }
