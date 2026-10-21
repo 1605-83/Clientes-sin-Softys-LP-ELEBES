@@ -61,7 +61,7 @@ button.dl{font:inherit;font-size:.88rem;padding:8px 14px;border:1px solid var(--
 @media (max-width:700px){.th{display:none}.vrow{grid-template-columns:22px 1fr auto}.vrow .m{display:none}.det{padding-left:10px}}
 /* venta de Softys por dia (pedido de Bruno, 21/10/2026) */
 .vdia{padding:16px 20px}.vdia h2{margin:0 0 2px;font-size:1rem}.vdia .sub{color:var(--ink2);font-size:.82rem;margin-bottom:12px}
-.drow{display:grid;grid-template-columns:22px 110px minmax(0,1fr) 120px 90px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #EEF0F4;cursor:pointer;font-size:.9rem}
+.drow{display:grid;grid-template-columns:22px 110px minmax(0,1fr) 120px 150px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #EEF0F4;cursor:pointer;font-size:.9rem}
 .drow:hover{background:#FAFBFD}.drow .r{text-align:right}.drow .bar{height:10px}
 .drow.hoy b.d::after{content:' · hoy';color:var(--verde);font-weight:700}
 .dvend{padding:4px 0 10px 32px}.dvend table{width:100%;border-collapse:collapse;font-size:.85rem}.dvend td{padding:4px 8px;border-top:1px solid #F1F3F6}.dvend td.r{text-align:right}
@@ -176,6 +176,8 @@ function dibujar(){
   const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT), noAct=$('fNoAct').checked;
   // total de combos vendidos en el mes (de los vendedores que se ven; pedido de Bruno, 20/10/2026)
   const tComb=V.reduce((a,v)=>a+(COMBOS[v.c]||0),0), cliComb=V.reduce((a,v)=>a+(COMBO_DET[v.c]||[]).filter(x=>x[1]>0).length,0), venComb=V.filter(v=>(COMBOS[v.c]||0)>0).length;
+  const cH=combosDia(HOY,V.map(v=>v.c));
+  const kHoy=`<div class="kpi"><div class="l">Combos ${COMBO_COD} de hoy</div><div class="v" style="color:var(--verde)">${fmtN(cH.n)}</div><div class="n">${cH.n? `a ${fmtN(cH.cli)} cliente${cH.cli===1?'':'s'} · ${fmtN(cH.ven)} vendedor${cH.ven===1?'':'es'} · en vivo` : 'todavía no hay combos cargados hoy'}</div></div>`;
   const kCombo=`<div class="kpi"><div class="l">Combos ${COMBO_COD} vendidos en ${nH}</div><div class="v" style="color:var(--marca)">${fmtN(tComb)}</div><div class="n">${tComb? `a ${fmtN(cliComb)} cliente${cliComb===1?'':'s'} · ${fmtN(venComb)} vendedor${venComb===1?'':'es'} con combos` : 'todavía no hay combos cargados'}</div></div>`;
   $('lNoAct').hidden=!mes;
   document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'NC Softys';
@@ -183,12 +185,12 @@ function dibujar(){
     const recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
     $('meta').textContent=`Clientes de la cartera${$('fDiaV').value? ' con visita el '+DIA[$('fDiaV').value].toLowerCase() : ''} con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
     $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
-    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>${kCombo}`;
+    $('kpis').innerHTML=`<div class="kpi"><div class="l">Compraron Softys en ${nA}</div><div class="v" style="color:var(--azul)">${fmtN(tSin)}</div><div class="n">${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes de la cartera</div></div>      <div class="kpi"><div class="l">${noAct? `Les falta comprar en ${nH}` : `Ya volvieron a comprar en ${nH}`}</div><div class="v" style="color:${noAct?'var(--rojo)':'var(--verde)'}">${fmtN(noAct? tSin : recompra)}</div><div class="n">${noAct? `compraron en ${nA} y todavía no en ${nH}` : `${tSin? fmtP(recompra/tSin) : '—'} de los que compraron en ${nA}`}</div></div>${kCombo}${kHoy}`;
   } else {
   $('kpis').style.gridTemplateColumns='repeat(auto-fit,minmax(220px,1fr))';
   $('meta').textContent=`${$('fDiaV').value? 'Clientes con visita el '+DIA[$('fDiaV').value].toLowerCase()+' · ' : ''}Sin factura de Softys desde el ${dmy(corte)} (${DIAS} días) · ventas al ${dmy(HOY)}${vivoCorte? ` · los pedidos de Softys cargados hoy ya cuentan como compra` : ''}${DESDE>corte? ` · la base tiene ventas desde el ${dmy(DESDE)}` : ''}`;
   $('kpis').innerHTML=`<div class="kpi"><div class="l">Clientes sin compra de Softys</div><div class="v" style="color:var(--rojo)">${fmtN(tSin)}</div><div class="n">en los últimos ${DIAS} días · ${tCart? fmtP(tSin/tCart) : '—'} de ${fmtN(tCart)} clientes</div></div>
-    ${kCombo}
+    ${kCombo}${kHoy}
     <div class="kpi"><div class="l">Nunca compraron Softys</div><div class="v">${fmtN(nunca)}</div><div class="n">sin ninguna factura desde el ${dmy(DESDE)}</div></div>`;
   }
   document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
@@ -217,8 +219,8 @@ function dibujarDia(){
   let h=`<h2>Venta de Softys por día · ${nomMes(MES_ACT)}${fv? ' · '+esc(NOMV[+fv]||'Vendedor '+fv) : ''}${fd? ' · solo los '+({L:'lunes',M:'martes',X:'miércoles',J:'jueves',V:'viernes',S:'sábados'}[fd]) : ''}</h2><div class="sub">Facturado por fecha de comprobante; hoy suma los pedidos cargados y se actualiza en vivo${vivoCorte? ` (pedidos al ${vivoCorte.slice(11)})` : ''} · tocá un día para verlo por vendedor</div>`
     + `<div class="dtot"><span>Total del mes <b>$ ${fmtN(tot)}</b></span><span>Promedio por día <b>$ ${fmtN(prom)}</b></span><span>Días con venta <b>${dias.length}</b></span></div>`;
   for(const o of dias){ const ab=diasAb.has(o.d);
-    h+=`<div class="drow${o.d===HOY?' hoy':''}" data-dd="${o.d}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">${ab?'⌄':'›'}</span><b class="d">${nd(o.d)}</b><span class="bar"><i style="width:${Math.max(o.imp,0)/max*100}%"></i></span><span class="r"><b>$ ${fmtN(o.imp)}</b></span><span class="r m">${fmtN(o.ncli)} cliente${o.ncli===1?'':'s'}</span></div>`;
-    if(ab) h+=`<div class="dvend"><table><tbody>${o.vs.map(v=>`<tr><td><span class="cod">${v.c}</span>${esc(NOMV[v.c]||'Vendedor '+v.c)}</td><td class="r"><b>$ ${fmtN(v.imp)}</b></td><td class="r">${fmtN(v.ncli)} cliente${v.ncli===1?'':'s'}</td><td class="r">${o.imp>0? fmtP(v.imp/o.imp) : '—'}</td></tr>`).join('')}</tbody></table></div>`; }
+    h+=`<div class="drow${o.d===HOY?' hoy':''}" data-dd="${o.d}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">${ab?'⌄':'›'}</span><b class="d">${nd(o.d)}</b><span class="bar"><i style="width:${Math.max(o.imp,0)/max*100}%"></i></span><span class="r"><b>$ ${fmtN(o.imp)}</b></span><span class="r m">${fmtN(o.ncli)} cliente${o.ncli===1?'':'s'}${(()=>{ const k=combosDia(o.d,o.vs.map(v=>v.c)).n; return k? ` · ${fmtN(k)} combo${k===1?'':'s'}` : ''; })()}</span></div>`;
+    if(ab) h+=`<div class="dvend"><table><tbody>${o.vs.map(v=>`<tr><td><span class="cod">${v.c}</span>${esc(NOMV[v.c]||'Vendedor '+v.c)}</td><td class="r"><b>$ ${fmtN(v.imp)}</b></td><td class="r">${fmtN(v.ncli)} cliente${v.ncli===1?'':'s'}</td><td class="r">${o.imp>0? fmtP(v.imp/o.imp) : '—'}</td><td class="r">${(()=>{ const k=combosDia(o.d,[v.c]).n; return k? `${fmtN(k)} combo${k===1?'':'s'}` : ''; })()}</td></tr>`).join('')}</tbody></table></div>`; }
   el.innerHTML= dias.length? h : h+'<div class="vacio">Todavía no hay venta de Softys este mes.</div>';
 }
 function descargar(){
@@ -280,6 +282,10 @@ $('fVend').addEventListener('change',dibujar); $('fDiaV').addEventListener('chan
 // (cada articulo del combo va con su codigo), por eso no salen de los CSV de ventas. El robot de combos del Reporte
 // diario sube vivo/combos.json cada 15 minutos con pedidos de hoy y facturados del mes ----
 let combosAct='', COMBO_DET={};
+// combos del dia d de los vendedores cs: {n: combos, cli: clientes, ven: vendedores con combos} (pedido de Bruno, 21/10/2026)
+function combosDia(d,cs){ let n=0; const cli=new Set(), ven=new Set();
+  for(const c of cs) for(const [k,cant,fecha] of (COMBO_DET[c]||[])) if(fecha===d && cant){ n+=cant; cli.add(k); ven.add(c); }
+  return {n, cli:cli.size, ven:ven.size}; }
 // ultima factura de Softys del cliente: la de los archivos del mes (sin los pedidos de hoy, que ya cuentan como compra en la lista)
 const ultFact=cli=>((BASE&&BASE.ULT)||ULT)[String(cli).trim()]||'';
 // clientes a los que el vendedor les vendio el combo en el mes (aparte de la lista de sin compra: el combo es de Softys)
