@@ -77,7 +77,7 @@ footer{margin-top:16px;font-size:.78rem;color:var(--ink2);text-align:center}
   </div>
   <div class="card kpis" id="kpis"></div>
   <div class="card lista">
-    <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">Sin Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span><span class="r" data-k="combo" id="thCombo">Combos 1137</span></div>
+    <div class="th"><span></span><span data-k="n">Vendedor</span><span class="r" data-k="sin">Clientes NC Softys</span><span class="r" data-k="cart">Cartera</span><span data-k="p">% de la cartera</span><span class="r" data-k="combo" id="thCombo">Combos 1137</span></div>
     <div id="filas"></div>
   </div>
   <footer>Clientes activos de la cartera de cada vendedor en Gescom que no tienen ninguna factura de Softys en el período (de cualquier vendedor) · se actualiza con el Reporte diario de ventas</footer>
@@ -162,7 +162,7 @@ function dibujar(){
   const tComb=V.reduce((a,v)=>a+(COMBOS[v.c]||0),0), cliComb=V.reduce((a,v)=>a+(COMBO_DET[v.c]||[]).filter(x=>x[1]>0).length,0), venComb=V.filter(v=>(COMBOS[v.c]||0)>0).length;
   const kCombo=`<div class="kpi"><div class="l">Combos ${COMBO_COD} vendidos en ${nH}</div><div class="v" style="color:var(--marca)">${fmtN(tComb)}</div><div class="n">${tComb? `a ${fmtN(cliComb)} cliente${cliComb===1?'':'s'} · ${fmtN(venComb)} vendedor${venComb===1?'':'es'} con combos` : 'todavía no hay combos cargados'}</div></div>`;
   $('lNoAct').hidden=!mes;
-  document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'Sin Softys';
+  document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'Clientes NC Softys';
   if(mes){
     const recompra=V.reduce((a,v)=>a+v.sin.filter(k=>k.act>0).length,0);
     $('meta').textContent=`Clientes de la cartera con factura de Softys en ${nA}${noAct? ` que todavía no compraron en ${nH}` : ''} · ventas al ${dmy(HOY)}`;
