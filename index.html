@@ -178,10 +178,12 @@ function dibujar(){
   const mes=DIAS==='mes', nA=nomMes(MES_ANT), nH=nomMes(MES_ACT), noAct=$('fNoAct').checked;
   // total de combos vendidos en el mes (de los vendedores que se ven; pedido de Bruno, 20/10/2026)
   const tComb=V.reduce((a,v)=>a+(COMBOS[v.c]||0),0), cliComb=V.reduce((a,v)=>a+(COMBO_DET[v.c]||[]).filter(x=>x[1]>0).length,0), venComb=V.filter(v=>(COMBOS[v.c]||0)>0).length;
-  // con un dia de la semana elegido, lo de hoy solo cuenta si hoy es ese dia (pedido de Bruno, 21/10/2026)
-  const hoyOk=esDia(HOY,fd), cH=hoyOk? combosDia(HOY,V.map(v=>v.c)) : {n:0,cli:0,ven:0}, tFd= fd? V.reduce((a,v)=>a+combosV(v.c,fd),0) : 0;
-  const kHoy=`<div class="kpi"><div class="l">Combos ${COMBO_COD} de hoy</div><div class="v" style="color:var(--verde)">${fmtN(cH.n)}</div><div class="n">${cH.n? `a ${fmtN(cH.cli)} cliente${cH.cli===1?'':'s'} · ${fmtN(cH.ven)} vendedor${cH.ven===1?'':'es'} · en vivo` : (hoyOk? 'todavía no hay combos cargados hoy' : `hoy no es ${DIA[fd].toLowerCase()}`)}</div></div>`;
-  const kCombo=`<div class="kpi"><div class="l">Combos ${COMBO_COD} vendidos en ${nH}</div><div class="v" style="color:var(--marca)">${fmtN(tComb)}</div><div class="n">${tComb? `a ${fmtN(cliComb)} cliente${cliComb===1?'':'s'} · ${fmtN(venComb)} vendedor${venComb===1?'':'es'} con combos` : 'todavía no hay combos cargados'}${fd? ` · <b>${fmtN(tFd)} los ${PLUR[fd]}</b>` : ''} · <b>${fmtN(cH.n)} hoy</b></div></div>`;
+  // la tarjeta del dia: hoy, o con un dia de la semana elegido, el ultimo de ese dia (el martes pasado queda en el historial;
+  // pedido de Bruno, 21/10/2026)
+  let dRef=HOY; if(fd) for(let i=0;i<7;i++){ const t=new Date(HOY+'T12:00'); t.setDate(t.getDate()-i); const iso=t.toISOString().slice(0,10); if(esDia(iso,fd)){ dRef=iso; break; } }
+  const hoyOk=dRef===HOY, cH=combosDia(dRef,V.map(v=>v.c)), dTxt= hoyOk? 'hoy' : `el ${DIA[fd].toLowerCase()} ${dmy(dRef).slice(0,5)}`, tFd= fd? V.reduce((a,v)=>a+combosV(v.c,fd),0) : 0;
+  const kHoy=`<div class="kpi"><div class="l">Combos ${COMBO_COD} ${hoyOk? 'de hoy' : 'del '+DIA[fd].toLowerCase()+' '+dmy(dRef).slice(0,5)}</div><div class="v" style="color:var(--verde)">${fmtN(cH.n)}</div><div class="n">${cH.n? `a ${fmtN(cH.cli)} cliente${cH.cli===1?'':'s'} · ${fmtN(cH.ven)} vendedor${cH.ven===1?'':'es'}${hoyOk? ' · en vivo' : ''}` : `no hay combos cargados ${dTxt}`}</div></div>`;
+  const kCombo=`<div class="kpi"><div class="l">Combos ${COMBO_COD} vendidos en ${nH}</div><div class="v" style="color:var(--marca)">${fmtN(tComb)}</div><div class="n">${tComb? `a ${fmtN(cliComb)} cliente${cliComb===1?'':'s'} · ${fmtN(venComb)} vendedor${venComb===1?'':'es'} con combos` : 'todavía no hay combos cargados'}${fd? ` · <b>${fmtN(tFd)} los ${PLUR[fd]}</b>` : ''} · <b>${fmtN(cH.n)} ${dTxt}</b></div></div>`;
   $('lNoAct').hidden=!mes;
   document.querySelector('.th span[data-k="sin"]').textContent= mes? `Compraron en ${nA}` : 'NC Softys';
   if(mes){
@@ -199,7 +201,7 @@ function dibujar(){
   document.querySelectorAll('.th span[data-k]').forEach(s=>{ s.textContent=s.textContent.replace(/ [▲▼]$/,'')+(s.dataset.k===sortK? (sortD>0?' ▲':' ▼') : ''); });
   let h='';
   for(const v of V){ if(!v.sin.length && $('fCli').value.trim()) continue; const ab=abiertos.has(v.c);
-    h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span><span class="r m"><b>${fmtN(combosV(v.c,fd))}</b>${(()=>{ const k=hoyOk? combosDia(HOY,[v.c]).n : 0; return k? `<small class="chy"> · hoy ${fmtN(k)}</small>` : ''; })()}</span></div>`;
+    h+=`<div class="vrow${ab?' ab':''}" data-v="${v.c}" role="button" tabindex="0" aria-expanded="${ab}"><span class="chev">›</span><span class="vn"><span class="cod">${v.c}</span>${esc(v.n)}</span><span class="r"><b>${v.sin.length}</b></span><span class="r m">${v.cart}</span><span class="m"><span class="bar"><i style="width:${v.p*100}%"></i></span>${fmtP(v.p)}</span><span class="r m"><b>${fmtN(combosV(v.c,fd))}</b>${(()=>{ const k=combosDia(dRef,[v.c]).n; return k? `<small class="chy"> · ${hoyOk? 'hoy' : dmy(dRef).slice(0,5)} ${fmtN(k)}</small>` : ''; })()}</span></div>`;
     if(ab) h+=bloqueCombos(v);
     if(ab && mes){ const L=[...v.sin].sort((a,b)=>porDia(a,b)||b.ant-a.ant);
       h+=`<div class="det"><table><thead><tr><th>Código</th><th>Razón social</th><th>Día de visita</th><th style="text-align:right">Softys ${nA}</th><th style="text-align:right">Softys ${nH}</th><th>Última compra</th></tr></thead><tbody>${L.map(k=>`<tr><td><b>${esc(k.cod)}</b></td><td>${esc(titulo(k.rs))}</td><td>${DIA[k.dia]||'—'}</td><td style="text-align:right">$ ${fmtN(k.ant)}</td><td style="text-align:right">${k.act>0? `<span class="si">$ ${fmtN(k.act)}</span>` : `<span class="nunca">Sin compra</span>`}</td><td>${dmy(k.ult)}</td></tr>`).join('')||'<tr><td colspan="6">Sin clientes.</td></tr>'}</tbody></table></div>`; }
